@@ -97,7 +97,7 @@ training_set <- non_electric_cars %>%
 # testing_set <- non_electric_cars %>% 
 #     filter(row_number()%%5 !=0)
 ```
-
+#Test
 ```{r}
 require(broom)
 require(splines)
