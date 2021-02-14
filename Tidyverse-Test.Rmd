@@ -1,0 +1,121 @@
+---
+title: "R Notebook"
+output: 
+  html_notebook: 
+    highlight: pygments
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+```{r}
+require(tidyverse)
+theme_set(theme_light())
+```
+
+```{r}
+big_epa_cars <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-15/big_epa_cars.csv") %>% 
+    mutate(uses_electicity = ifelse(highwayE > 0, "Uses Electricity", "Doesnt Use Electricity"))
+
+```
+
+```{r}
+big_epa_cars_aplhabetical <- big_epa_cars %>% 
+    select(sort(colnames(big_epa_cars)))
+     
+```
+
+```{r}
+big_epa_cars %>% select(city08,highway08,make,model,cylinders,displ,drive,engId,eng_dscr, uses_electicity, VClass)
+
+big_epa_cars %>% count(cityE, sort = TRUE)
+
+big_epa_cars %>% count(uses_electicity, sort = TRUE)
+
+
+big_epa_cars %>% 
+    ggplot(aes(highway08, city08, color = uses_electicity))+
+    geom_point()+
+    geom_abline(color = "red")+
+    facet_wrap(~uses_electicity, scales = "free")+
+    expand_limits(x=0, y=0)+
+    labs(x = "Highway MPG",
+         y = "City MPG",
+         title = "How does fule efficiency differ between city + highway")
+    
+```
+
+```{r}
+big_epa_cars %>%
+    filter(cityE == 0) %>% 
+    mutate(VClass = fct_lump(VClass, 8),
+            VClass = fct_reorder(VClass, city08)) %>% 
+    ggplot(aes(VClass,highway08))+
+    geom_boxplot()+
+    coord_flip()
+    
+
+big_epa_cars %>%
+    filter(cityE == 0) %>% 
+    mutate(drive = fct_reorder(drive, city08)) %>% 
+    ggplot(aes(drive,highway08))+
+    geom_boxplot()+
+    coord_flip()
+
+big_epa_cars %>%
+    filter(cityE == 0) %>% 
+    ggplot(aes(cylinders,highway08, group = cylinders))+
+    geom_boxplot()
+
+big_epa_cars %>%
+    filter(cityE == 0) %>% 
+    ggplot(aes(displ,highway08,))+
+    geom_point()+
+    expand_limits(x = 0, y = 0)
+
+
+```
+
+
+# Goal - Predict city fuel efficiency for Non-Electric Cars
+
+```{r}
+non_electric_cars <- big_epa_cars %>%
+    filter(cityA08 == 0, 
+           cityE == 0) %>% 
+    sample_frac(1)
+
+training_set <- non_electric_cars %>% 
+    filter(row_number()%%5 !=0)
+
+# testing_set <- non_electric_cars %>% 
+#     filter(row_number()%%5 !=0)
+```
+
+```{r}
+require(broom)
+require(splines)
+
+training_set %>% 
+    ggplot(aes(displ, city08))+
+    geom_point()+
+    geom_smooth(method = "lm")
+
+augmented_data <- lm(city08 ~ ns(displ, 2), data = training_set) %>% 
+  augment(data = training_set)
+  
+augmented_data %>% 
+  ggplot(aes(displ, city08))+
+  geom_point()+
+  geom_line(aes(y= .fitted), color = "red", size=2)
+
+models <-  tibble(df = 1:10) %>% 
+  mutate(lm_model = map(df, ~ lm(city08 ~ ns(displ, df = .), data = training_set)))
+```
+
